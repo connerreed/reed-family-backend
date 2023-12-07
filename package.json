@@ -1,0 +1,33 @@
+{
+  "name": "reed-family-backend",
+  "version": "1.0.0",
+  "description": "A Node.js backend server for the Reed Family project, handling data retrieval and management with Google Drive API",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/connerreed/reed-family-backend.git"
+  },
+  "keywords": [
+    "nodejs",
+    "express",
+    "backend",
+    "google-drive-api",
+    "family-website",
+    "react-backend",
+    "data-management"
+  ],
+  "author": "Conner Reed",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/connerreed/reed-family-backend/issues"
+  },
+  "homepage": "https://github.com/connerreed/reed-family-backend#readme",
+  "dependencies": {
+    "@google-cloud/local-auth": "^2.1.0",
+    "express": "^4.18.2",
+    "googleapis": "^105.0.0"
+  }
+}
