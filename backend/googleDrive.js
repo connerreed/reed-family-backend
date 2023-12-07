@@ -84,11 +84,51 @@ async function listFiles(authClient) {
   return files;
 }
 
+async function getFolderStructure(authClient) {
+  const drive = google.drive({ version: 'v3', auth: authClient });
+
+  // Retrieve all folders
+  const folderRes = await drive.files.list({
+    q: "mimeType='application/vnd.google-apps.folder'",
+    fields: 'files(id, name)',
+  });
+  let folders = folderRes.data.files;
+  let folderStructure = {};
+
+  // Initialize folders in the structure
+  folders.forEach(folder => {
+    folderStructure[folder.id] = { name: folder.name, files: [] };
+  });
+
+  // Retrieve all files
+  const fileRes = await drive.files.list({
+    q: "mimeType!='application/vnd.google-apps.folder'",
+    fields: 'files(id, name, parents)',
+  });
+  let files = fileRes.data.files;
+
+  // Map files to folders
+  files.forEach(file => {
+    if (file.parents && file.parents.length > 0) {
+      const parentFolderId = file.parents[0];
+      if (folderStructure[parentFolderId]) {
+        folderStructure[parentFolderId].files.push({ id: file.id, name: file.name });
+      }
+    }
+  });
+
+  return folderStructure;
+}
+
 authorize().then(listFiles).catch(console.error);
 
 module.exports = {
   listFiles: async function() {
     const authClient = await authorize();
     return listFiles(authClient);
+  },
+  getFolderStructure: async function() {
+    const authClient = await authorize();
+    return getFolderStructure(authClient);
   }
 };
