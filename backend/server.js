@@ -1,7 +1,18 @@
 const express = require('express');
-const app = express();
+const {listFiles} = require('./googleDrive');
 
+const app = express();
 const port = process.env.PORT || 3001; // Use environment port or 3001
+
+app.get('/api/files', async (req, res) => {
+    try {
+        const files = await listFiles(); // Fetch files from Google Drive
+        res.json(files);
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Error fetching files from Google Drive');
+    }
+});
 
 app.get('/', (req, res) => {
     res.send('Hello World!');

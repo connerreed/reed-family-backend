@@ -81,10 +81,14 @@ async function listFiles(authClient) {
     return;
   }
 
-  console.log('Files:');
-  files.map((file) => {
-    console.log(`${file.name} (${file.id})`);
-  });
+  return files;
 }
 
 authorize().then(listFiles).catch(console.error);
+
+module.exports = {
+  listFiles: async function() {
+    const authClient = await authorize();
+    return listFiles(authClient);
+  }
+};
