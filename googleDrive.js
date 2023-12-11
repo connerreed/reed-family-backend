@@ -85,11 +85,11 @@ async function listFiles(authClient) {
 }
 
 async function getFolderStructure(authClient) {
-  const drive = google.drive({ version: 'v3', auth: authClient });
+  const drive = google.drive({ version: 'v3', auth: authClient }); // Initialize Google Drive API client with given 'authClient'
 
   // Retrieve all folders
   const folderRes = await drive.files.list({
-    q: "mimeType='application/vnd.google-apps.folder'",
+    q: "mimeType = 'application/vnd.google-apps.folder'",
     fields: 'files(id, name)',
   });
   let folders = folderRes.data.files;
@@ -103,7 +103,7 @@ async function getFolderStructure(authClient) {
   // Retrieve all files
   const fileRes = await drive.files.list({
     q: "mimeType!='application/vnd.google-apps.folder'",
-    fields: 'files(id, name, parents)',
+    fields: 'files(id, name, parents, webViewLink)',
   });
   let files = fileRes.data.files;
 
