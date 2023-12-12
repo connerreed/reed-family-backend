@@ -1,7 +1,8 @@
 const express = require('express');
 const {listFiles, getFolderStructure, listPictures, listRecipes} = require('./googleDrive');
-
+const cors = require('cors');
 const app = express();
+app.use(cors()); // This will enable CORS for all routes
 const port = process.env.PORT || 3001; // Use environment port or 3001
 
 app.get('/api/files', async (req, res) => {
