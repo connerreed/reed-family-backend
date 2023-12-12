@@ -112,7 +112,7 @@ async function getFolderStructure(authClient) {
     if (file.parents && file.parents.length > 0) {
       const parentFolderId = file.parents[0];
       if (folderStructure[parentFolderId]) {
-        folderStructure[parentFolderId].files.push({ id: file.id, name: file.name });
+        folderStructure[parentFolderId].files.push({ id: file.id, name: file.name, link: file.webViewLink });
       }
     }
   });
