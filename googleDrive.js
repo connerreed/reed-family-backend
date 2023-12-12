@@ -98,10 +98,15 @@ async function listPictures(authClient) {
   // List all files in the "Pictures" folder
   const filesRes = await drive.files.list({
     q: `'${folder.id}' in parents`,
-    fields: 'files(id, name, webViewLink)',
+    fields: 'files(id, name)',
   });
 
-  return filesRes.data.files;
+  const files = filesRes.data.files.map(file => {
+    const link = `https://drive.google.com/uc?export=view&id=${file.id}`;
+    return {...file, link };
+  });
+
+  return files;
 }
 
 
@@ -119,10 +124,15 @@ async function listRecipes(authClient) {
   // List all files in the "Recipes" folder
   const filesRes = await drive.files.list({
     q: `'${folder.id}' in parents`,
-    fields: 'files(id, name, webViewLink)',
+    fields: 'files(id, name)',
   });
 
-  return filesRes.data.files;
+  const files = filesRes.data.files.map(file => {
+    const link = `https://drive.google.com/uc?export=view&id=${file.id}`;
+    return {...file, link };
+  });
+
+  return files;
 }
 
 
@@ -145,7 +155,7 @@ async function getFolderStructure(authClient) {
   // Retrieve all files
   const fileRes = await drive.files.list({
     q: "mimeType!='application/vnd.google-apps.folder'",
-    fields: 'files(id, name, parents, webViewLink)',
+    fields: 'files(id, name, parents)',
   });
   let files = fileRes.data.files;
 
@@ -154,7 +164,7 @@ async function getFolderStructure(authClient) {
     if (file.parents && file.parents.length > 0) {
       const parentFolderId = file.parents[0];
       if (folderStructure[parentFolderId]) {
-        folderStructure[parentFolderId].files.push({ id: file.id, name: file.name, link: file.webViewLink });
+        folderStructure[parentFolderId].files.push({ id: file.id, name: file.name, link: `https://drive.google.com/uc?export=view&id=${file.id}` });
       }
     }
   });
