@@ -25,7 +25,7 @@ app.get('/api/folders', async (req, res) => {
 });
 
 app.get('/', (req, res) => {
-    res.send('Hello World!');
+    res.send('Use /api/files for all files. Use /api/folders to get files in folder structure.');
 });
 
 app.listen(port, () => {
