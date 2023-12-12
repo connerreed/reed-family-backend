@@ -84,6 +84,48 @@ async function listFiles(authClient) {
   return files;
 }
 
+async function listPictures(authClient) {
+  const drive = google.drive({ version: 'v3', auth: authClient });
+
+  // Find the ID of the "Pictures" folder
+  const folderRes = await drive.files.list({
+    q: "mimeType = 'application/vnd.google-apps.folder' and name = 'Pictures'",
+    fields: 'files(id)',
+  });
+  const folder = folderRes.data.files.length > 0 ? folderRes.data.files[0] : null;
+  if (!folder) return []; // Return empty if the folder is not found
+
+  // List all files in the "Pictures" folder
+  const filesRes = await drive.files.list({
+    q: `'${folder.id}' in parents`,
+    fields: 'files(id, name, webViewLink)',
+  });
+
+  return filesRes.data.files;
+}
+
+
+async function listRecipes(authClient) {
+  const drive = google.drive({ version: 'v3', auth: authClient });
+
+  // Find the ID of the "Recipes" folder
+  const folderRes = await drive.files.list({
+    q: "mimeType = 'application/vnd.google-apps.folder' and name = 'Recipes'",
+    fields: 'files(id)',
+  });
+  const folder = folderRes.data.files.length > 0 ? folderRes.data.files[0] : null;
+  if (!folder) return []; // Return empty if the folder is not found
+
+  // List all files in the "Recipes" folder
+  const filesRes = await drive.files.list({
+    q: `'${folder.id}' in parents`,
+    fields: 'files(id, name, webViewLink)',
+  });
+
+  return filesRes.data.files;
+}
+
+
 async function getFolderStructure(authClient) {
   const drive = google.drive({ version: 'v3', auth: authClient }); // Initialize Google Drive API client with given 'authClient'
 
@@ -130,5 +172,13 @@ module.exports = {
   getFolderStructure: async function() {
     const authClient = await authorize();
     return getFolderStructure(authClient);
+  },
+  listPictures: async function() {
+    const authClient = await authorize();
+    return listPictures(authClient);
+  },
+  listRecipes: async function() {
+    const authClient = await authorize();
+    return listRecipes(authClient);
   }
 };

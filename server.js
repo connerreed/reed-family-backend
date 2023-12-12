@@ -1,5 +1,5 @@
 const express = require('express');
-const {listFiles, getFolderStructure} = require('./googleDrive');
+const {listFiles, getFolderStructure, listPictures, listRecipes} = require('./googleDrive');
 
 const app = express();
 const port = process.env.PORT || 3001; // Use environment port or 3001
@@ -21,6 +21,26 @@ app.get('/api/folders', async (req, res) => {
     } catch(error) {
         console.error(error);
         res.status(500).send('Error fetching folders from Google Drive');
+    }
+});
+
+app.get('/api/pictures', async (req, res) => {
+    try {
+        const pictures = await listPictures();
+        res.json(pictures);
+    } catch(error) {
+        console.error(error);
+        res.status(500).send('Error fetching Pictures from Google Drive');
+    }
+});
+
+app.get('/api/recipes', async (req, res) => {
+    try {
+        const recipes = await listRecipes();
+        res.json(recipes);
+    } catch(error) {
+        console.error(error);
+        res.status(500).send('Error fetching Recipes from Google Drive');
     }
 });
 
