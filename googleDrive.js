@@ -121,18 +121,44 @@ async function listRecipes(authClient) {
   const folder = folderRes.data.files.length > 0 ? folderRes.data.files[0] : null;
   if (!folder) return []; // Return empty if the folder is not found
 
-  // List all files in the "Recipes" folder
-  const filesRes = await drive.files.list({
-    q: `'${folder.id}' in parents`,
+  // List all subfolders (recipes) in the "Recipes" folder
+  const subfolderRes = await drive.files.list({
+    q: `'${folder.id}' in parents and mimeType = 'application/vnd.google-apps.folder'`,
     fields: 'files(id, name)',
   });
+  const subfolders = subfolderRes.data.files;
 
-  const files = filesRes.data.files.map(file => {
-    const link = `https://drive.google.com/uc?export=view&id=${file.id}`;
-    return {...file, link };
-  });
+  let recipes = [];
 
-  return files;
+  for (const subfolder of subfolders) {
+    // List all files in each recipe subfolder
+    const filesRes = await drive.files.list({
+      q: `'${subfolder.id}' in parents`,
+      fields: 'files(id, name)',
+    });
+
+    let coverImg = null;
+    let descriptionImgs = [];
+
+    for (const file of filesRes.data.files) {
+      const link = `https://drive.google.com/uc?export=view&id=${file.id}`;
+      const fileInfo = { ...file, link };
+
+      if (file.name === `${subfolder.name}.jpg` || file.name === `${subfolder.name}.png`) { // Replace 'file_type' with actual type if known
+        coverImg = fileInfo;
+      } else {
+        descriptionImgs.push(fileInfo);
+      }
+    }
+
+    recipes.push({
+      folderName: subfolder.name,
+      coverImg: coverImg,
+      descriptionImgs: descriptionImgs
+    });
+  }
+
+  return recipes;
 }
 
 
