@@ -142,9 +142,12 @@ async function listRecipes(authClient) {
 
     for (const file of filesRes.data.files) {
       const link = `https://drive.google.com/uc?export=view&id=${file.id}`;
-      const fileInfo = { ...file, link };
 
-      if (file.name === `${subfolder.name}.jpg` || file.name === `${subfolder.name}.png`) { // Replace 'file_type' with actual type if known
+      // Remove the file extension from the name
+      const nameWithoutExtension = file.name.replace(/\.[^/.]+$/, "");
+      const fileInfo = { id: file.id, name: nameWithoutExtension, link};
+
+      if (file.name.startsWith(`${subfolder.name}.`)) {
         coverImg = fileInfo;
       } else {
         descriptionImgs.push(fileInfo);
