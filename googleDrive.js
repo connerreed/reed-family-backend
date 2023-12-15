@@ -1,4 +1,5 @@
-const fs = require('fs').promises;
+const fsp = require('fs').promises;
+const fs = require('fs');
 const path = require('path');
 const process = require('process');
 const {authenticate} = require('@google-cloud/local-auth');
@@ -19,7 +20,7 @@ const CREDENTIALS_PATH = path.join(process.cwd(), 'credentials.json');
  */
 async function loadSavedCredentialsIfExist() {
   try {
-    const content = await fs.readFile(TOKEN_PATH);
+    const content = await fsp.readFile(TOKEN_PATH);
     const credentials = JSON.parse(content);
     return google.auth.fromJSON(credentials);
   } catch (err) {
@@ -34,7 +35,7 @@ async function loadSavedCredentialsIfExist() {
  * @return {Promise<void>}
  */
 async function saveCredentials(client) {
-  const content = await fs.readFile(CREDENTIALS_PATH);
+  const content = await fsp.readFile(CREDENTIALS_PATH);
   const keys = JSON.parse(content);
   const key = keys.installed || keys.web;
   const payload = JSON.stringify({
@@ -43,7 +44,7 @@ async function saveCredentials(client) {
     client_secret: key.client_secret,
     refresh_token: client.credentials.refresh_token,
   });
-  await fs.writeFile(TOKEN_PATH, payload);
+  await fsp.writeFile(TOKEN_PATH, payload);
 }
 
 /**
@@ -178,7 +179,7 @@ async function getFolderStructure(authClient) {
 
   // Initialize folders in the structure
   folders.forEach(folder => {
-    folderStructure[folder.id] = { name: folder.name, files: [] };
+    folderStructure[folder.id] = { id: folder.id, name: folder.name, files: [] };
   });
 
   // Retrieve all files
@@ -201,9 +202,38 @@ async function getFolderStructure(authClient) {
   return folderStructure;
 }
 
+async function uploadFile(authClient, filePath, mimeType, parentFolderId) {
+  const drive = google.drive({ version: 'v3', auth: authClient });
+
+  const fileMetadata = {
+    name: path.basename(filePath),
+    parents: [parentFolderId], // specify the folder ID here
+  };
+
+  const media = {
+    mimeType: mimeType,
+    body: fs.createReadStream(filePath),
+  };
+
+  try {
+    const response = await drive.files.create({
+      resource: fileMetadata,
+      media: media,
+      fields: 'id',
+    });
+
+    return response.data.id; // returns the ID of the uploaded file
+  } catch (error) {
+    console.error('Error uploading file:', error.message);
+    throw error;
+  }
+}
+
+
 authorize().then(listFiles).catch(console.error);
 
 module.exports = {
+  authorize,
   listFiles: async function() {
     const authClient = await authorize();
     return listFiles(authClient);
@@ -219,5 +249,9 @@ module.exports = {
   listRecipes: async function() {
     const authClient = await authorize();
     return listRecipes(authClient);
+  },
+  uploadFile: async function(filePath, mimeType, parentFolderId) {
+    const authClient = await authorize();
+    return uploadFile(authClient, filePath, mimeType, parentFolderId);
   }
 };
