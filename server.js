@@ -1,25 +1,61 @@
-const express = require('express');
-const {listFiles, getFolderStructure, listPictures, listRecipes, uploadFile, authorize} = require('./googleDrive');
-const cors = require('cors');
+const express = require("express");
+const {
+    listFiles,
+    getFolderStructure,
+    listPictures,
+    listRecipes,
+    uploadFile,
+    createFolder,
+} = require("./googleDrive");
+const cors = require("cors");
 const app = express();
 app.use(cors()); // This will enable CORS for all routes
 const port = process.env.PORT || 3001; // Use environment port or 3001
 
-const multer = require('multer'); // Multer is a node.js middleware for handling multipart/form-data, which is primarily used for uploading files.
-const upload = multer({ dest: 'uploads/'}); // This is where the uploaded files will be stored temporarily
-const fs = require('fs'); // Node.js file system module
+const multer = require("multer"); // Multer is a node.js middleware for handling multipart/form-data, which is primarily used for uploading files.
+const upload = multer({ dest: "uploads/" }); // This is where the uploaded files will be stored temporarily
+const fs = require("fs"); // Node.js file system module
 
-// Add endpoint to server
-app.post('/upload/pictures', upload.array('files'), async (req, res) => {
+// Add recipe upload endpoint to server
+// Add recipe upload endpoint to server
+app.post("/upload/recipes", upload.array("files"), async (req, res) => {
     try {
         const files = req.files; // Array of files
-        
-        const authClient = await authorize(); // Ensure you have a valid authClient
+        const recipeName = req.body.recipeName; // Recipe name from the form
+
+        // Create a folder for the recipe in Google Drive
+        const recipeFolderId = await createFolder(
+            recipeName,
+            "1tAf5IEtpeJLRuC7_ZPxa3M3AnjJSeA5c"
+        ); // Use the ID of the Recipes folder
 
         for (const file of files) {
             const filePath = file.path; // The path of the uploaded file
             const mimeType = file.mimetype; // MIME type of the file
-            const parentFolderId = '1Ba3dxGlKbpIW4j6N4kqkdUiJxi5_dwm2'; // ID of pictures folder
+
+            // Upload the file to the recipe folder in Google Drive
+            await uploadFile(filePath, mimeType, recipeFolderId);
+
+            // Delete the file from the temporary upload folder
+            fs.unlinkSync(filePath);
+        }
+
+        res.status(200).send("Recipe uploaded successfully");
+    } catch (error) {
+        console.error(error);
+        res.status(500).send("Error uploading recipe");
+    }
+});
+
+// Add picture upload endpoint to server
+app.post("/upload/pictures", upload.array("files"), async (req, res) => {
+    try {
+        const files = req.files; // Array of files
+
+        for (const file of files) {
+            const filePath = file.path; // The path of the uploaded file
+            const mimeType = file.mimetype; // MIME type of the file
+            const parentFolderId = "1Ba3dxGlKbpIW4j6N4kqkdUiJxi5_dwm2"; // ID of pictures folder
 
             // Upload the file to Google Drive
             await uploadFile(filePath, mimeType, parentFolderId);
@@ -27,56 +63,58 @@ app.post('/upload/pictures', upload.array('files'), async (req, res) => {
             // Delete the file from the temporary upload folder
             fs.unlinkSync(filePath);
 
-        res.status(200).send('Files uploaded successfully');
+            res.status(200).send("Files uploaded successfully");
         }
     } catch (error) {
         console.error(error);
-        res.status(500).send('Error uploading files');
+        res.status(500).send("Error uploading files");
     }
 });
 
-app.get('/api/files', async (req, res) => {
+app.get("/api/files", async (req, res) => {
     try {
         const files = await listFiles(); // Fetch files from Google Drive
         res.json(files);
     } catch (error) {
         console.error(error);
-        res.status(500).send('Error fetching files from Google Drive');
+        res.status(500).send("Error fetching files from Google Drive");
     }
 });
 
-app.get('/api/folders', async (req, res) => {
+app.get("/api/folders", async (req, res) => {
     try {
         const folders = await getFolderStructure(); // Fetch folders
         res.json(folders);
-    } catch(error) {
+    } catch (error) {
         console.error(error);
-        res.status(500).send('Error fetching folders from Google Drive');
+        res.status(500).send("Error fetching folders from Google Drive");
     }
 });
 
-app.get('/api/pictures', async (req, res) => {
+app.get("/api/pictures", async (req, res) => {
     try {
         const pictures = await listPictures();
         res.json(pictures);
-    } catch(error) {
+    } catch (error) {
         console.error(error);
-        res.status(500).send('Error fetching Pictures from Google Drive');
+        res.status(500).send("Error fetching Pictures from Google Drive");
     }
 });
 
-app.get('/api/recipes', async (req, res) => {
+app.get("/api/recipes", async (req, res) => {
     try {
         const recipes = await listRecipes();
         res.json(recipes);
-    } catch(error) {
+    } catch (error) {
         console.error(error);
-        res.status(500).send('Error fetching Recipes from Google Drive');
+        res.status(500).send("Error fetching Recipes from Google Drive");
     }
 });
 
-app.get('/', (req, res) => {
-    res.send('Use /api/files for all files. Use /api/folders to get files in folder structure. api/recipies for recipies. api/pictures for pictures');
+app.get("/", (req, res) => {
+    res.send(
+        "Use /api/files for all files. Use /api/folders to get files in folder structure. api/recipies for recipies. api/pictures for pictures"
+    );
 });
 
 app.listen(port, () => {
