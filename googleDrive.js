@@ -1,6 +1,7 @@
 const fsp = require('fs').promises;
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const process = require('process');
 const {authenticate} = require('@google-cloud/local-auth');
 const {google} = require('googleapis');
@@ -202,11 +203,26 @@ async function getFolderStructure(authClient) {
   return folderStructure;
 }
 
-async function uploadFile(authClient, filePath, mimeType, parentFolderId) {
+async function uploadFile(authClient, fileInput, fileName, mimeType, parentFolderId) {
   const drive = google.drive({ version: 'v3', auth: authClient });
 
+  let filePath;
+  let isTempFile = false;
+
+  // Check if input is a buffer (cover image)
+  if (Buffer.isBuffer(fileInput)) {
+    // Write buffer to a temporary file
+    filePath = path.join(os.tmpdir(), fileName);
+    await fsp.writeFile(filePath, fileInput);
+    isTempFile = true;
+  } else {
+    // Use the provided file path (description images)
+    filePath = fileInput;
+  }
+
+
   const fileMetadata = {
-    name: path.basename(filePath),
+    name: fileName,
     parents: [parentFolderId], // specify the folder ID here
   };
 
@@ -221,6 +237,11 @@ async function uploadFile(authClient, filePath, mimeType, parentFolderId) {
       media: media,
       fields: 'id',
     });
+
+    // Delete the temporary file
+    if (isTempFile) {
+      await fsp.unlink(filePath);
+    }
 
     return response.data.id; // returns the ID of the uploaded file
   } catch (error) {
@@ -273,9 +294,9 @@ module.exports = {
     const authClient = await authorize();
     return listRecipes(authClient);
   },
-  uploadFile: async function(filePath, mimeType, parentFolderId) {
+  uploadFile: async function(fileInput, fileName, mimeType, parentFolderId) {
     const authClient = await authorize();
-    return uploadFile(authClient, filePath, mimeType, parentFolderId);
+    return uploadFile(authClient, fileInput, fileName, mimeType, parentFolderId);
   },
   createFolder: async function(folderName, parentFolderId) {
     const authClient = await authorize();
