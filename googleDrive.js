@@ -229,6 +229,29 @@ async function uploadFile(authClient, filePath, mimeType, parentFolderId) {
   }
 }
 
+// function to create unique recipe folder in Google Drive
+async function createFolder(authClient, folderName, parentFolderId) {
+  const drive = google.drive({ version: 'v3', auth: authClient });
+
+  const fileMetadata = {
+    name: folderName,
+    mimeType: 'application/vnd.google-apps.folder',
+    parents: [parentFolderId]
+  };
+
+  try {
+    const response = await drive.files.create({
+      resource: fileMetadata,
+      fields: 'id'
+    });
+
+    return response.data.id; // returns the ID of the created folder
+  } catch (error) {
+    console.error('Error creating folder:', error.message);
+    throw error;
+  }
+}
+
 
 authorize().then(listFiles).catch(console.error);
 
@@ -253,5 +276,9 @@ module.exports = {
   uploadFile: async function(filePath, mimeType, parentFolderId) {
     const authClient = await authorize();
     return uploadFile(authClient, filePath, mimeType, parentFolderId);
-  }
+  },
+  createFolder: async function(folderName, parentFolderId) {
+    const authClient = await authorize();
+    return createFolder(authClient, folderName, parentFolderId);
+  },
 };
