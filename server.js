@@ -125,7 +125,7 @@ app.post("/upload/pictures", upload.array("files"), async (req, res) => {
         }
     } catch (error) {
         console.error(error);
-        res.status(500).send("Error uploading files");
+        res.status(500).json({ message: error.message });
     } finally {
         // Cleanup: Delete all files from the temp folder
         for (const file of files) {
