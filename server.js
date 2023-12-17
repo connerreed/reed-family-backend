@@ -63,17 +63,18 @@ async function searchRecipeImage(recipeName) {
 
 // Add recipe upload endpoint to server
 app.post("/upload/recipes", upload.array("files"), async (req, res) => {
+    const files = req.files; // Array of files
     try {
-        const files = req.files; // Array of files
         const recipeName = req.body.recipeName; // Recipe name from the form
-
-        const { coverImageBuffer, coverImageFilename, coverMimeType } = await searchRecipeImage(recipeName); // Search for recipe image
 
         // Create a sub-folder for the recipe in Google Drive
         const recipeFolderId = await createFolder(
             recipeName,
             "1tAf5IEtpeJLRuC7_ZPxa3M3AnjJSeA5c"
         ); // Stores the ID of the newly created recipe sub-folder
+        
+        // Search for recipe image
+        const { coverImageBuffer, coverImageFilename, coverMimeType } = await searchRecipeImage(recipeName);
 
         // Upload the cover image to the recipe folder in Google Drive
         if (coverImageBuffer) {
@@ -88,8 +89,6 @@ app.post("/upload/recipes", upload.array("files"), async (req, res) => {
             // Upload the file to the recipe folder in Google Drive
             await uploadFile(filePath, `${recipeName}_${imageNum}`, mimeType, recipeFolderId);
 
-            // Delete the file from the temporary upload folder
-            fs.unlinkSync(filePath);
             imageNum++;
         }
 
@@ -97,13 +96,22 @@ app.post("/upload/recipes", upload.array("files"), async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: error.message });
+    } finally {
+        // Cleanup: Delete all files from the temp folder
+        for (const file of files) {
+            try {
+                fs.unlinkSync(file.path);
+            } catch (cleanupError) {
+                console.error('Error cleaning up files', file.path, cleanupError);
+            }
+        }
     }
 });
 
 // Add picture upload endpoint to server
 app.post("/upload/pictures", upload.array("files"), async (req, res) => {
+    const files = req.files; // Array of files
     try {
-        const files = req.files; // Array of files
         for (const file of files) {
             const filePath = file.path; // The path of the uploaded file
             const mimeType = file.mimetype; // MIME type of the file
@@ -113,14 +121,20 @@ app.post("/upload/pictures", upload.array("files"), async (req, res) => {
             // Upload the file to Google Drive
             await uploadFile(filePath, fileName, mimeType, parentFolderId);
 
-            // Delete the file from the temporary upload folder
-            fs.unlinkSync(filePath);
-
             res.status(200).send("Files uploaded successfully");
         }
     } catch (error) {
         console.error(error);
         res.status(500).send("Error uploading files");
+    } finally {
+        // Cleanup: Delete all files from the temp folder
+        for (const file of files) {
+            try {
+                fs.unlinkSync(file.path);
+            } catch (cleanupError) {
+                console.error('Error cleaning up files', file.path, cleanupError);
+            }
+        }
     }
 });
 
