@@ -64,12 +64,14 @@ async function searchRecipeImage(recipeName) {
 // Add recipe upload endpoint to server
 app.post("/upload/recipes", upload.array("files"), async (req, res) => {
     const files = req.files; // Array of files
+    const recipeName = req.body.recipeName; // Recipe name from the form
+    const authorName = req.body.authorName; // Author name from the form
     try {
-        const recipeName = req.body.recipeName; // Recipe name from the form
 
         // Create a sub-folder for the recipe in Google Drive
         const recipeFolderId = await createFolder(
             recipeName,
+            authorName,
             "1tAf5IEtpeJLRuC7_ZPxa3M3AnjJSeA5c"
         ); // Stores the ID of the newly created recipe sub-folder
         

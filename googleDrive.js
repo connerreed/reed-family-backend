@@ -147,9 +147,9 @@ async function listRecipes(authClient) {
 
       // Remove the file extension from the name
       const nameWithoutExtension = file.name.replace(/\.[^/.]+$/, "");
-      const fileInfo = { id: file.id, name: nameWithoutExtension, link};
-
-      if (file.name.startsWith(`${subfolder.name}.`)) {
+      const fileInfo = { id: file.id, name: nameWithoutExtension, link, author: null};
+      if (file.name.startsWith(`${subfolder.name.split('-')[0]}.`)) { // split to take out author name in folder name
+        fileInfo.author = subfolder.name.split('-')[1]; // split to take out recipe name in folder name
         coverImg = fileInfo;
       } else {
         descriptionImgs.push(fileInfo);
@@ -251,7 +251,7 @@ async function uploadFile(authClient, fileInput, fileName, mimeType, parentFolde
 }
 
 // function to create unique recipe folder in Google Drive
-async function createFolder(authClient, folderName, parentFolderId) {
+async function createFolder(authClient, folderName, authorName, parentFolderId) {
   const drive = google.drive({ version: 'v3', auth: authClient });
   const currentRecipes = await listRecipes(authClient);
   for (const recipe of currentRecipes) {
@@ -260,7 +260,7 @@ async function createFolder(authClient, folderName, parentFolderId) {
     }
   }
   const fileMetadata = {
-    name: folderName,
+    name: `${folderName}-${authorName}`,
     mimeType: 'application/vnd.google-apps.folder',
     parents: [parentFolderId]
   };
@@ -303,8 +303,8 @@ module.exports = {
     const authClient = await authorize();
     return uploadFile(authClient, fileInput, fileName, mimeType, parentFolderId);
   },
-  createFolder: async function(folderName, parentFolderId) {
+  createFolder: async function(folderName, authorName, parentFolderId) {
     const authClient = await authorize();
-    return createFolder(authClient, folderName, parentFolderId);
+    return createFolder(authClient, folderName, authorName, parentFolderId);
   },
 };
