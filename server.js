@@ -104,14 +104,14 @@ app.post("/upload/recipes", upload.array("files"), async (req, res) => {
 app.post("/upload/pictures", upload.array("files"), async (req, res) => {
     try {
         const files = req.files; // Array of files
-
         for (const file of files) {
             const filePath = file.path; // The path of the uploaded file
             const mimeType = file.mimetype; // MIME type of the file
+            const fileName = file.originalname; // The name of the uploaded file
             const parentFolderId = "1Ba3dxGlKbpIW4j6N4kqkdUiJxi5_dwm2"; // ID of pictures folder
 
             // Upload the file to Google Drive
-            await uploadFile(filePath, mimeType, parentFolderId);
+            await uploadFile(filePath, fileName, mimeType, parentFolderId);
 
             // Delete the file from the temporary upload folder
             fs.unlinkSync(filePath);
