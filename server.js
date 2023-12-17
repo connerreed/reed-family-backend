@@ -96,7 +96,7 @@ app.post("/upload/recipes", upload.array("files"), async (req, res) => {
         res.status(200).send("Recipe uploaded successfully");
     } catch (error) {
         console.error(error);
-        res.status(500).send("Error uploading recipe");
+        res.status(500).json({ message: error.message });
     }
 });
 
