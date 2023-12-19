@@ -194,6 +194,22 @@ app.get("/api/folders", async (req, res) => {
     }
 });
 
+// Initialize data on front end start
+app.get("/api/initialize", async (req, res) => {
+    // Check if data is already initialized
+    if (recipeList.length > 0 && pictureList.length > 0) {
+        return res.status(200).send("Data already initialized");
+    }
+
+    try {
+        await initializeData();
+        return res.status(200).send("Data initialized successfully");
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: error.message });
+    }
+});
+
 // params: name
 app.get("/api/recipes", async (req, res) => {
     const recipeName = req.query.name;
