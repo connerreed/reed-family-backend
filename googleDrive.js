@@ -253,12 +253,7 @@ async function uploadFile(authClient, fileInput, fileName, mimeType, parentFolde
 // function to create unique recipe folder in Google Drive
 async function createFolder(authClient, folderName, authorName, parentFolderId) {
   const drive = google.drive({ version: 'v3', auth: authClient });
-  const currentRecipes = await listRecipes(authClient);
-  for (const recipe of currentRecipes) {
-    if (recipe.folderName === folderName) {
-      throw new Error('Recipe already exists. Try a different name!');
-    }
-  }
+  
   const fileMetadata = {
     name: `${folderName}-${authorName}`,
     mimeType: 'application/vnd.google-apps.folder',
