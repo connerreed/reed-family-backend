@@ -113,6 +113,9 @@ app.post("/api/upload", upload.array("files"), async (req, res) => {
         if (itemType === "recipes") {
             recipeName = req.body.recipeName; // Recipe name from the form
             authorName = req.body.authorName; // Author name from the form
+            if(recipeList.find((recipe) => recipe.folderName === (recipeName + "-" + authorName))) {
+                return res.status(400).send("Recipe already exists");
+            }
             parentFolderId = await createFolder(
                 recipeName,
                 authorName,
