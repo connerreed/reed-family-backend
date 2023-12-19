@@ -4,6 +4,7 @@ const {
     getFolderStructure,
     listPictures,
     listRecipes,
+    getAllElements,
     uploadFile,
     createFolder,
 } = require("./googleDrive");
@@ -18,11 +19,11 @@ const fs = require("fs"); // Node.js file system module
 const axios = require("axios"); // Axios is a promise-based HTTP client for the browser and node.js, used for searching recipe images
 
 async function updateRecipeList(recipeList) {
-    recipeList = await listRecipes();
+    recipeList = await getAllElements("recipes");
 }
 
 async function updatePictureList(pictureList) {
-    pictureList = await listPictures();
+    pictureList = await getAllElements("pictures");
 }
 
 let recipeList = [];
@@ -113,7 +114,12 @@ app.post("/api/upload", upload.array("files"), async (req, res) => {
         if (itemType === "recipes") {
             recipeName = req.body.recipeName; // Recipe name from the form
             authorName = req.body.authorName; // Author name from the form
-            if(recipeList.find((recipe) => recipe.folderName === (recipeName + "-" + authorName))) {
+            if (
+                recipeList.find(
+                    (recipe) =>
+                        recipe.folderName === recipeName + "-" + authorName
+                )
+            ) {
                 return res.status(400).send("Recipe already exists");
             }
             parentFolderId = await createFolder(
