@@ -24,6 +24,9 @@ const maxItemsPerPage = 12; // maximum number of items to return per page
 
 async function initializeData() {
     console.log("Initializing data");
+    if(recipeList.length > 0 || pictureList.length > 0) {
+        return;
+    }
     try {
         await updateRecipeListAll();
         await updatePictureListAll();
