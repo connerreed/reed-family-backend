@@ -20,7 +20,7 @@ const axios = require("axios"); // Axios is a promise-based HTTP client for the 
 
 let recipeList = [];
 let pictureList = [];
-const maxItemsPerPage = 12; // maximum number of items to return per page
+const maxItemsPerPage = 10; // maximum number of items to return per page
 
 async function initializeData() {
     console.log("Initializing data");
@@ -295,7 +295,7 @@ app.get("/api/items", async (req, res) => {
     let maxItems;
     if (isSlideshow) {
         items = items.sort(() => Math.random() - 0.5);
-        maxItems = 10; // maxItems for slideshow
+        maxItems = 5; // maxItems for slideshow
     } else {
         maxItems = maxItemsPerPage; // maxItemsPerPage is seperate from maxItems because maxItemsPerPage is used for total pages calculation in other endpoint
     }
