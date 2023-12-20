@@ -87,84 +87,103 @@ async function listFiles(authClient) {
     return files;
 }
 
-async function getAllElements(authClient, elementType) {
-  const drive = google.drive({ version: 'v3', auth: authClient });
-  const type = elementType === 'pictures' ? 'Pictures' : 'Recipes';
+async function getAllElementsOfType(authClient, elementType) {
+    const drive = google.drive({ version: "v3", auth: authClient });
+    const type = elementType === "pictures" ? "Pictures" : "Recipes";
 
-  // Find the ID of the "elementType" folder
-  const folderRes = await drive.files.list({
-      q: `mimeType = 'application/vnd.google-apps.folder' and name = '${type}'`,
-      fields: 'files(id)',
-  });
-  const folder = folderRes.data.files.length > 0 ? folderRes.data.files[0] : null;
-  if (!folder) return []; // Return empty if the folder is not found
+    // Find the ID of the "elementType" folder
+    const folderRes = await drive.files.list({
+        q: `mimeType = 'application/vnd.google-apps.folder' and name = '${type}'`,
+        fields: "files(id)",
+    });
+    const folder =
+        folderRes.data.files.length > 0 ? folderRes.data.files[0] : null;
+    if (!folder) return []; // Return empty if the folder is not found
 
-  let elements = [];
-  if (elementType === 'recipes') {
-      const subfolderRes = await drive.files.list({
-          q: `'${folder.id}' in parents and mimeType = 'application/vnd.google-apps.folder'`,
-          fields: 'files(id, name)',
-      });
-      const subfolders = subfolderRes.data.files;
-      for (const subfolder of subfolders) {
-          const filesRes = await drive.files.list({
-              q: `'${subfolder.id}' in parents`,
-              fields: 'files(id, name)',
-          });
-          let coverImg = null;
-          let descriptionImgs = [];
-          for (const file of filesRes.data.files) {
-              const fileInfo = await getFileInfo(drive, file);
-              if (file.name.startsWith(`${subfolder.name.split('-')[0]}.`)) {
-                  fileInfo.author = subfolder.name.split('-')[1];
-                  coverImg = fileInfo;
-              } else {
-                  descriptionImgs.push(fileInfo);
-              }
-          }
-          elements.push({
-              folderName: subfolder.name,
-              coverImg: coverImg,
-              descriptionImgs: descriptionImgs,
-          });
-      }
-  } else {
-      const filesRes = await drive.files.list({
-          q: `'${folder.id}' in parents`,
-          fields: 'files(id, name)',
-      });
-      for (const file of filesRes.data.files) {
-          const fileInfo = await getFileInfo(drive, file);
-          elements.push(fileInfo);
-      }
-  }
-  console.log(`Done ${elementType}`);
-  return elements;
+    let elements = [];
+    if (elementType === "recipes") {
+        const subfolderRes = await drive.files.list({
+            q: `'${folder.id}' in parents and mimeType = 'application/vnd.google-apps.folder'`,
+            fields: "files(id, name)",
+        });
+        const subfolders = subfolderRes.data.files;
+        for (const subfolder of subfolders) {
+            const filesRes = await drive.files.list({
+                q: `'${subfolder.id}' in parents`,
+                fields: "files(id, name, webViewLink, webContentLink, mimeType)",
+            });
+            let coverImg = null;
+            let descriptionImgs = [];
+            for (const file of filesRes.data.files) {
+                const fileInfo = await getFileInfo(file, elementType);
+                if (file.name.startsWith(`${subfolder.name.split("-")[0]}.`)) {
+                    fileInfo.author = subfolder.name.split("-")[1];
+                    coverImg = fileInfo;
+                } else {
+                    descriptionImgs.push(fileInfo);
+                }
+            }
+            elements.push({
+                folderName: subfolder.name,
+                coverImg: coverImg,
+                descriptionImgs: descriptionImgs,
+            });
+        }
+    } else {
+        const filesRes = await drive.files.list({
+            q: `'${folder.id}' in parents`,
+            fields: "files(id, name, webViewLink, webContentLink, mimeType)",
+        });
+        for (const file of filesRes.data.files) {
+            const fileInfo = await getFileInfo(file, elementType);
+            elements.push(fileInfo);
+        }
+    }
+    return elements;
 }
 
-async function getFileInfo(drive, file) {
-  const thumbnailRes = await drive.files.get({
-      fileId: file.id,
-      fields: 'thumbnailLink, mimeType',
-  });
+async function getFileInfo(file, elementType) {
+    // Check if webViewLink is available
+    if (!file.webContentLink || !file.webViewLink) {
+    return {
+        id: file.id,
+        name:
+            elementType === "recipes"
+                ? file.name.replace(/\.[^/.]+$/, "")
+                : null,
+        image: null,
+        mimeType: file.mimeType,
+        author: null,
+    };
+    }
 
-  const thumbnailLink = thumbnailRes.data.thumbnailLink;
-  const mimeType = thumbnailRes.data.mimeType;
-  let imageBase64 = null;
-  if (thumbnailLink) {
-      const imageResponse = await axios.get(thumbnailLink, {
-          responseType: 'arraybuffer',
-      });
-      imageBase64 = Buffer.from(imageResponse.data, 'binary').toString('base64');
-  }
+    // Download the image using the webViewLink
 
-  return {
-      id: file.id,
-      name: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
-      image: imageBase64,
-      mimeType: mimeType,
-      author: null,
-  };
+    let imageResponse;
+    let imageBase64;
+    try {
+        imageResponse = await axios.get(file.webContentLink, {
+            responseType: "arraybuffer",
+        });
+        // Convert to Base64
+        imageBase64 = Buffer.from(imageResponse.data, "binary").toString(
+            "base64"
+        );
+    } catch (error) {
+        imageResponse = null;
+        imageBase64 = null;
+        console.error(`Error downloading image: ${file.name} ${error.message}`);
+    }
+
+    return {
+        id: file.id,
+        name: file.name.replace(/\.[^/.]+$/, ""),
+        image: imageBase64,
+        mimeType: file.mimeType,
+        author: null,
+        webViewLink: file.webViewLink,
+        webContentLink: file.webContentLink,
+    };
 }
 
 async function getFolderStructure(authClient) {
@@ -209,6 +228,29 @@ async function getFolderStructure(authClient) {
     });
 
     return folderStructure;
+}
+
+async function getRecipeFromFolder(authClient, folderId) {
+    const folders = getFolderStructure(authClient);
+    const folder = folders[folderId];
+    return folder;
+}
+
+async function getPicturesFromIds(authClient, ids) {
+    console.log("ids", ids);
+    const drive = google.drive({ version: "v3", auth: authClient });
+    let pictures = [];
+
+    for (const id of ids) {
+        const fileRes = await drive.files.get({
+            fileId: id,
+            fields: "id, name, webViewLink, webContentLink, mimeType",
+        });
+        const file = fileRes.data;
+        const fileInfo = await getFileInfo(file, "pictures");
+        pictures.push(fileInfo);
+    }
+    return pictures;
 }
 
 async function uploadFile(
@@ -303,17 +345,17 @@ module.exports = {
         const authClient = await authorize();
         return getFolderStructure(authClient);
     },
-    listPictures: async function () {
+    getAllElementsOfType: async function (elementType) {
         const authClient = await authorize();
-        return listPictures(authClient);
+        return getAllElementsOfType(authClient, elementType);
     },
-    listRecipes: async function () {
+    getRecipeFromFolder: async function (folderId) {
         const authClient = await authorize();
-        return listRecipes(authClient);
+        return getRecipeFromFolder(authClient, folderId);
     },
-    getAllElements: async function (elementType) {
+    getPicturesFromIds: async function (ids) {
         const authClient = await authorize();
-        return getAllElements(authClient, elementType);
+        return getPicturesFromIds(authClient, ids);
     },
     uploadFile: async function (fileInput, fileName, mimeType, parentFolderId) {
         const authClient = await authorize();

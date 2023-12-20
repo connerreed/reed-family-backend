@@ -1,10 +1,10 @@
 const express = require("express");
 const {
     listFiles,
+    getRecipeFromFolder,
+    getPicturesFromIds,
     getFolderStructure,
-    listPictures,
-    listRecipes,
-    getAllElements,
+    getAllElementsOfType,
     uploadFile,
     createFolder,
 } = require("./googleDrive");
@@ -18,34 +18,57 @@ const upload = multer({ dest: "uploads/" }); // This is where the uploaded files
 const fs = require("fs"); // Node.js file system module
 const axios = require("axios"); // Axios is a promise-based HTTP client for the browser and node.js, used for searching recipe images
 
-async function updateRecipeList(recipeList) {
-    recipeList = await getAllElements("recipes");
-}
-
-async function updatePictureList(pictureList) {
-    pictureList = await getAllElements("pictures");
-}
-
 let recipeList = [];
 let pictureList = [];
 const maxItemsPerPage = 12; // maximum number of items to return per page
 
 async function initializeData() {
+    console.log("Initializing data");
     try {
-        recipeList = await listRecipes();
-        pictureList = await listPictures();
+        await updateRecipeListAll();
+        await updatePictureListAll();
     } catch (error) {
         console.error("Error initializing data", error);
     }
 }
 
-async function getRecipe(recipeName) {
-    if (recipeList.length === 0) {
-        await updateRecipeList();
+async function updateRecipeList(parentFolderId) {
+    console.log("Before update:", recipeList.length, " recipes");
+    try {
+        const recipe = await getRecipeFromFolder(parentFolderId);
+        recipeList.push(recipe);
+    } catch (error) {
+        console.error("Error updating recipe list", error);
     }
+    console.log("After update:", recipeList.length, " recipes");
+}
+
+async function updatePictureList(newPictures) {
+    console.log("Before update:", pictureList.length, " pictures");
+    try {
+        console.log("newPictures", newPictures);
+        const pictures = await getPicturesFromIds(newPictures);
+        console.log("pictures", pictures);
+        pictureList.push(...pictures);
+    } catch (error) {
+        console.error("Error updating picture list", error);
+    }
+    console.log("After update:", pictureList.length, " pictures");
+}
+
+async function updateRecipeListAll() {
+    recipeList = await getAllElementsOfType("recipes");
+}
+
+async function updatePictureListAll() {
+    pictureList = await getAllElementsOfType("pictures");
+}
+
+
+async function getRecipe(recipeName) {
     let recipe = recipeList.find((recipe) => recipe.folderName === recipeName);
     if (!recipe) {
-        throw new Error(`Recipe not found: ${decodedRecipeName}`);
+        throw new Error(`Recipe not found: ${recipeName}`);
     }
     return recipe;
 }
@@ -120,7 +143,9 @@ app.post("/api/upload", upload.array("files"), async (req, res) => {
                         recipe.folderName === recipeName + "-" + authorName
                 )
             ) {
-                return res.status(400).send("Recipe already exists");
+                return res
+                    .status(400)
+                    .send("Recipe already exists by this author");
             }
             parentFolderId = await createFolder(
                 recipeName,
@@ -144,6 +169,7 @@ app.post("/api/upload", upload.array("files"), async (req, res) => {
         }
 
         let imageNum = 1; // Used to number the images on upload of recipe
+        let newPictures = [];
         for (const file of files) {
             const filePath = file.path; // The path of the uploaded file
             const mimeType = file.mimetype; // MIME type of the file
@@ -153,14 +179,24 @@ app.post("/api/upload", upload.array("files"), async (req, res) => {
                     : `${recipeName}_${imageNum}`; // The name of the uploaded file
 
             // Upload the file to Google Drive
-            await uploadFile(filePath, fileName, mimeType, parentFolderId);
+            const fileId = await uploadFile(
+                filePath,
+                fileName,
+                mimeType,
+                parentFolderId
+            );
+            if (itemType === "pictures") {
+                newPictures.push(fileId);
+            }
             imageNum++;
         }
+
         if (itemType === "recipes") {
-            await updateRecipeList();
-        } else {
-            await updatePictureList();
+            await updateRecipeList(parentFolderId);
+        } else if (itemType === "pictures") {
+            await updatePictureList(newPictures);
         }
+
         res.status(200).send(
             `{{itemType === "pictures" ? "Picture(s)" : "Recipe"}} uploaded successfully`
         );
