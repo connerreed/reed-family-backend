@@ -17,6 +17,65 @@ const multer = require("multer"); // Multer is a node.js middleware for handling
 const upload = multer({ dest: "uploads/" }); // This is where the uploaded files will be stored temporarily
 const fs = require("fs"); // Node.js file system module
 const axios = require("axios"); // Axios is a promise-based HTTP client for the browser and node.js, used for searching recipe images
+const sharp = require("sharp"); // Sharp is a high performance Node.js image processing library, used for converting images
+const path = require("path"); // Node.js path module
+
+async function downloadAndConvertImage(element) {
+    try {
+        console.log("Processing image: ", element.name);
+        const name = element.name;
+
+        // Create the main images directory if it doesn't exist
+        const imagesDir = path.join(__dirname, "images");
+        if (!fs.existsSync(imagesDir)) {
+            fs.mkdirSync(imagesDir);
+        }
+
+        // Create a subdirectory for the element if it doesn't exist
+        const elementDir = path.join(imagesDir, name.split(".")[0]);
+        if (!fs.existsSync(elementDir)) {
+            fs.mkdirSync(elementDir);
+        }
+
+        // Function to download and save an image
+        async function downloadImage(url, outputPath, isThumbnail = false) {
+            const response = await axios({
+                method: "get",
+                url: url,
+                responseType: "arraybuffer",
+            });
+
+            const image = sharp(response.data);
+
+            // If creating a thumbnail, resize the image
+            if (isThumbnail) {
+                image.resize(200, 200);
+            }
+
+            await image.toFile(outputPath);
+        }
+
+        // Check and download the main image
+        const mainImagePath = path.join(elementDir, `${name}`); // Assuming jpg for simplicity
+        if (!fs.existsSync(mainImagePath)) {
+            console.log("Downloading main image: ", element.name);
+            await downloadImage(element.webContentLink, mainImagePath);
+        } else {
+            console.log(`Main image already exists: ${mainImagePath}`);
+        }
+
+        // Check and download the thumbnail
+        const thumbnailPath = path.join(elementDir, `thumbnail_${name}`); // Assuming jpg for thumbnails
+        if (!fs.existsSync(thumbnailPath)) {
+            console.log("Downloading thumbnail: ", element.name);
+            await downloadImage(element.thumbnailLink, thumbnailPath, true);
+        } else {
+            console.log(`Thumbnail already exists: ${thumbnailPath}`);
+        }
+    } catch (error) {
+        console.error("Error processing image:", error);
+    }
+}
 
 let recipeList = [];
 let pictureList = [];
@@ -24,7 +83,7 @@ const maxItemsPerPage = 10; // maximum number of items to return per page
 
 async function initializeData() {
     console.log("Initializing data");
-    if(recipeList.length > 0 || pictureList.length > 0) {
+    if (recipeList.length > 0 || pictureList.length > 0) {
         return;
     }
     try {
@@ -33,6 +92,17 @@ async function initializeData() {
     } catch (error) {
         console.error("Error initializing data", error);
     }
+    console.log("Data initialized");
+    for (recipe of recipeList) {
+        await downloadAndConvertImage(recipe.coverImg);
+        for (descriptionImage of recipe.descriptionImgs) {
+            await downloadAndConvertImage(descriptionImage);
+        }
+    }
+    for (picture of pictureList) {
+        await downloadAndConvertImage(picture);
+    }
+    console.log("Images downloaded");
 }
 
 async function updateRecipeList(parentFolderId) {
@@ -66,7 +136,6 @@ async function updateRecipeListAll() {
 async function updatePictureListAll() {
     pictureList = await getAllElementsOfType("pictures");
 }
-
 
 async function getRecipe(recipeName) {
     let recipe = recipeList.find((recipe) => recipe.folderName === recipeName);
@@ -180,11 +249,12 @@ app.post("/api/upload", upload.array("files"), async (req, res) => {
                 itemType === "pictures"
                     ? file.originalname
                     : `${recipeName}_${imageNum}`; // The name of the uploaded file
+            const sanitizedFileName = fileName.replace(/[^a-z0-9.]/gi, "_"); // Replace all non-alphanumeric characters with underscores
 
             // Upload the file to Google Drive
             const fileId = await uploadFile(
                 filePath,
-                fileName,
+                sanitizedFileName,
                 mimeType,
                 parentFolderId
             );
@@ -268,6 +338,40 @@ app.get("/api/recipes", async (req, res) => {
         console.error(error);
         res.status(500).send("Error: Could not find recipe");
     }
+});
+
+app.get("/image/:imageName", (req, res) => {
+    const imageName = req.params.imageName;
+    const imageType = req.query.type; // 'full' for the full image, 'thumb' for the thumbnail
+
+    // Determine the path based on the requested image type
+    let imagePath;
+    if (imageType === "thumb") {
+        imagePath = path.join(
+            __dirname,
+            "images",
+            imageName.split(".")[0],
+            `thumbnail_${imageName}`
+        );
+    } else {
+        // Default to serving the full image
+        imagePath = path.join(
+            __dirname,
+            "images",
+            imageName.split(".")[0],
+            `${imageName}`
+        );
+    }
+
+    console.log("Serving image:", imagePath);
+
+    // Send the image file if it exists
+    res.sendFile(imagePath, (error) => {
+        if (error) {
+            // Handle errors
+            res.status(404).send("Image not found");
+        }
+    });
 });
 
 // params: type, page, slideshow
