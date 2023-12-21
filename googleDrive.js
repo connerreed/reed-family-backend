@@ -5,7 +5,6 @@ const os = require("os");
 const process = require("process");
 const { authenticate } = require("@google-cloud/local-auth");
 const { google } = require("googleapis");
-const axios = require("axios");
 
 // If modifying these scopes, delete token.json.
 const SCOPES = ["https://www.googleapis.com/auth/drive.metadata.readonly"];
@@ -90,6 +89,7 @@ async function listFiles(authClient) {
 async function getAllElementsOfType(authClient, elementType) {
     const drive = google.drive({ version: "v3", auth: authClient });
     const type = elementType === "pictures" ? "Pictures" : "Recipes";
+    console.log("Getting all elements of type:", elementType);
 
     // Find the ID of the "elementType" folder
     const folderRes = await drive.files.list({
@@ -139,46 +139,15 @@ async function getAllElementsOfType(authClient, elementType) {
             elements.push(fileInfo);
         }
     }
+    console.log("Done getting all elements of type:", elementType);
     return elements;
 }
 
 async function getFileInfo(file, elementType) {
     // Check if webViewLink is available
-    if (!file.webContentLink || !file.webViewLink) {
     return {
         id: file.id,
-        name:
-            elementType === "recipes"
-                ? file.name.replace(/\.[^/.]+$/, "")
-                : null,
-        image: null,
-        mimeType: file.mimeType,
-        author: null,
-    };
-    }
-
-    // Download the image using the webViewLink
-
-    let imageResponse;
-    let imageBase64;
-    try {
-        imageResponse = await axios.get(file.webContentLink, {
-            responseType: "arraybuffer",
-        });
-        // Convert to Base64
-        imageBase64 = Buffer.from(imageResponse.data, "binary").toString(
-            "base64"
-        );
-    } catch (error) {
-        imageResponse = null;
-        imageBase64 = null;
-        console.error(`Error downloading image: ${file.name} ${error.message}`);
-    }
-
-    return {
-        id: file.id,
-        name: file.name.replace(/\.[^/.]+$/, ""),
-        image: imageBase64,
+        name: file.name,
         mimeType: file.mimeType,
         author: null,
         webViewLink: file.webViewLink,
@@ -209,7 +178,7 @@ async function getFolderStructure(authClient) {
     // Retrieve all files
     const fileRes = await drive.files.list({
         q: "mimeType!='application/vnd.google-apps.folder'",
-        fields: "files(id, name, parents)",
+        fields: "files(id, name, webViewLink, webContentLink, mimeType, parents)",
     });
     let files = fileRes.data.files;
 
@@ -221,7 +190,9 @@ async function getFolderStructure(authClient) {
                 folderStructure[parentFolderId].files.push({
                     id: file.id,
                     name: file.name,
-                    link: `https://drive.google.com/uc?export=view&id=${file.id}`,
+                    webViewLink: file.webViewLink,
+                    webContentLink: file.webContentLink,
+                    mimeType: file.mimeType,
                 });
             }
         }
