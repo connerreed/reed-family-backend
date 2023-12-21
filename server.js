@@ -314,12 +314,12 @@ app.get("/update", async (req, res) => {
     const itemType = req.query.type; // 'pictures' or 'recipes' or 'all'
     try {
         if (itemType === "all") {
-            await updateRecipeListAll();
-            await updatePictureListAll();
+            await updateRecipeListPictures();
+            await updatePictureListPictures();
         } else if (itemType === "recipes") {
-            await updateRecipeListAll();
+            await updateRecipeListPictures();
         } else if (itemType === "pictures") {
-            await updatePictureListAll();
+            await updatePictureListPictures();
         }
 
         res.status(200).send("Data updated successfully");
