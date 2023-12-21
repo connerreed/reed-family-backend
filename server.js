@@ -94,7 +94,7 @@ async function initializeData() {
     }
     console.log("Data initialized");
     await updateRecipeListPictures();
-    await updatePictureListRecipes();
+    await updatePictureListPictures();
     console.log("Images downloaded");
 }
 
@@ -107,7 +107,7 @@ async function updateRecipeListPictures() {
     }
 }
 
-async function updatePictureListRecipes() {
+async function updatePictureListPictures() {
     for (picture of pictureList) {
         await downloadAndConvertImage(picture);
     }
