@@ -93,16 +93,24 @@ async function initializeData() {
         console.error("Error initializing data", error);
     }
     console.log("Data initialized");
+    await updateRecipeListPictures();
+    await updatePictureListRecipes();
+    console.log("Images downloaded");
+}
+
+async function updateRecipeListPictures() {
     for (recipe of recipeList) {
         await downloadAndConvertImage(recipe.coverImg);
         for (descriptionImage of recipe.descriptionImgs) {
             await downloadAndConvertImage(descriptionImage);
         }
     }
+}
+
+async function updatePictureListRecipes() {
     for (picture of pictureList) {
         await downloadAndConvertImage(picture);
     }
-    console.log("Images downloaded");
 }
 
 async function updateRecipeList(parentFolderId) {
@@ -299,6 +307,25 @@ app.get("/api/files", async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).send("Error fetching files from Google Drive");
+    }
+});
+
+app.get("/update", async (req, res) => {
+    const itemType = req.query.type; // 'pictures' or 'recipes' or 'all'
+    try {
+        if (itemType === "all") {
+            await updateRecipeListAll();
+            await updatePictureListAll();
+        } else if (itemType === "recipes") {
+            await updateRecipeListAll();
+        } else if (itemType === "pictures") {
+            await updatePictureListAll();
+        }
+
+        res.status(200).send("Data updated successfully");
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: error.message });
     }
 });
 
