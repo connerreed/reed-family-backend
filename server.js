@@ -118,6 +118,10 @@ async function updateRecipeList(parentFolderId) {
     try {
         const recipe = await getRecipeFromFolder(parentFolderId);
         recipeList.push(recipe);
+        downloadAndConvertImage(recipe.coverImg);
+        for (descriptionImage of recipe.descriptionImgs) {
+            downloadAndConvertImage(descriptionImage);
+        }
     } catch (error) {
         console.error("Error updating recipe list", error);
     }
@@ -130,6 +134,9 @@ async function updatePictureList(newPictures) {
         console.log("newPictures", newPictures);
         const pictures = await getPicturesFromIds(newPictures);
         console.log("pictures", pictures);
+        for (picture of pictures) {
+            await downloadAndConvertImage(picture);
+        }
         pictureList.push(...pictures);
     } catch (error) {
         console.error("Error updating picture list", error);
