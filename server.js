@@ -45,11 +45,11 @@ async function downloadAndConvertImage(element) {
                 responseType: "arraybuffer",
             });
 
-            const image = sharp(response.data);
+            let image = sharp(response.data);
 
             // If creating a thumbnail, resize the image
             if (isThumbnail) {
-                image.resize(200, 200);
+                image = image.resize(200, 200);
             }
 
             await image.toFile(outputPath);
@@ -68,7 +68,7 @@ async function downloadAndConvertImage(element) {
         const thumbnailPath = path.join(elementDir, `thumbnail_${name}`); // Assuming jpg for thumbnails
         if (!fs.existsSync(thumbnailPath)) {
             console.log("Downloading thumbnail: ", element.name);
-            await downloadImage(element.thumbnailLink, thumbnailPath, true);
+            await downloadImage(element.webContentLink, thumbnailPath, true);
         } else {
             console.log(`Thumbnail already exists: ${thumbnailPath}`);
         }
