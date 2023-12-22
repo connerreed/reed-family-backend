@@ -212,13 +212,7 @@ async function searchRecipeImage(recipeName) {
 app.post("/api/upload", upload.array("files"), async (req, res) => {
     const itemType = req.query.type; // 'pictures' or 'recipes'
     const family = req.query.family; // 'Lemonade', 'Lance & Ricque', 'Mike & Lisa', or 'Lane & Kelly'
-    if (
-        !["Lemonade", "Lance & Ricque", "Mike & Lisa", "Lane & Kelly"].includes(
-            family
-        )
-    ) {
-        return res.status(400).send("Invalid family parameter");
-    }
+    
     if (!["pictures", "recipes"].includes(itemType)) {
         return res.status(400).send("Invalid type parameter");
     }
