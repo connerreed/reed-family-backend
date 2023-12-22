@@ -201,9 +201,11 @@ async function getFolderStructure(authClient) {
     return folderStructure;
 }
 
-async function getRecipeFromFolder(authClient, folderId) {
-    const folders = getFolderStructure(authClient);
-    const folder = folders[folderId];
+async function getRecipeFromFolder(authClient, folderName) {
+    const folders = getAllElementsOfType(authClient, "recipes");
+    const folder = (await folders).find(
+        (folder) => folder.folderName === folderName
+    );
     return folder;
 }
 

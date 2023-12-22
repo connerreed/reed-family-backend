@@ -39,20 +39,24 @@ async function downloadAndConvertImage(element) {
 
         // Function to download and save an image
         async function downloadImage(url, outputPath, isThumbnail = false) {
-            const response = await axios({
-                method: "get",
-                url: url,
-                responseType: "arraybuffer",
-            });
+            try {
+                const response = await axios({
+                    method: "get",
+                    url: url,
+                    responseType: "arraybuffer",
+                });
 
-            let image = sharp(response.data);
+                let image = sharp(response.data).rotate(); // rotate() will automatically rotate the image based on EXIF data
 
-            // If creating a thumbnail, resize the image
-            if (isThumbnail) {
-                image = image.resize(200, 200);
+                // If creating a thumbnail, resize the image
+                if (isThumbnail) {
+                    image = image.resize(200, 200);
+                }
+
+                await image.toFile(outputPath);
+            } catch (error) {
+                console.error("Error downloading image:", error.message);
             }
-
-            await image.toFile(outputPath);
         }
 
         // Check and download the main image
@@ -117,11 +121,11 @@ async function updateRecipeList(parentFolderId) {
     console.log("Before update:", recipeList.length, " recipes");
     try {
         const recipe = await getRecipeFromFolder(parentFolderId);
-        recipeList.push(recipe);
-        downloadAndConvertImage(recipe.coverImg);
+        await downloadAndConvertImage(recipe.coverImg);
         for (descriptionImage of recipe.descriptionImgs) {
-            downloadAndConvertImage(descriptionImage);
+            await downloadAndConvertImage(descriptionImage);
         }
+        recipeList.unshift(recipe);
     } catch (error) {
         console.error("Error updating recipe list", error);
     }
@@ -131,13 +135,12 @@ async function updateRecipeList(parentFolderId) {
 async function updatePictureList(newPictures) {
     console.log("Before update:", pictureList.length, " pictures");
     try {
-        console.log("newPictures", newPictures);
         const pictures = await getPicturesFromIds(newPictures);
         console.log("pictures", pictures);
         for (picture of pictures) {
             await downloadAndConvertImage(picture);
         }
-        pictureList.push(...pictures);
+        pictureList.unshift(...pictures);
     } catch (error) {
         console.error("Error updating picture list", error);
     }
@@ -191,8 +194,7 @@ async function searchRecipeImage(recipeName) {
 
         // Determine the file extension
         const mimeType = imageResponse.headers["content-type"];
-        let extension = mimeType.split("/")[1];
-        if (extension === "jpeg") extension = "jpg"; // Convert jpeg to jpg
+        const extension = mimeType.split("/")[1];
 
         // Return the image buffer and the formatted filename
         return {
@@ -209,6 +211,14 @@ async function searchRecipeImage(recipeName) {
 // Add picture upload endpoint to server
 app.post("/api/upload", upload.array("files"), async (req, res) => {
     const itemType = req.query.type; // 'pictures' or 'recipes'
+    const family = req.query.family; // 'Lemonade', 'Lance & Ricque', 'Mike & Lisa', or 'Lane & Kelly'
+    if (
+        !["Lemonade", "Lance & Ricque", "Mike & Lisa", "Lane & Kelly"].includes(
+            family
+        )
+    ) {
+        return res.status(400).send("Invalid family parameter");
+    }
     if (!["pictures", "recipes"].includes(itemType)) {
         return res.status(400).send("Invalid type parameter");
     }
@@ -220,16 +230,13 @@ app.post("/api/upload", upload.array("files"), async (req, res) => {
         itemType === "pictures"
             ? "1Ba3dxGlKbpIW4j6N4kqkdUiJxi5_dwm2"
             : "1tAf5IEtpeJLRuC7_ZPxa3M3AnjJSeA5c";
+    let folderName = "";
     try {
         if (itemType === "recipes") {
             recipeName = req.body.recipeName; // Recipe name from the form
             authorName = req.body.authorName; // Author name from the form
-            if (
-                recipeList.find(
-                    (recipe) =>
-                        recipe.folderName === recipeName + "-" + authorName
-                )
-            ) {
+            folderName = recipeName + "-" + authorName; // Folder name is the recipe name and author name combined
+            if (recipeList.find((recipe) => recipe.folderName === folderName)) {
                 return res
                     .status(400)
                     .send("Recipe already exists by this author");
@@ -260,11 +267,12 @@ app.post("/api/upload", upload.array("files"), async (req, res) => {
         for (const file of files) {
             const filePath = file.path; // The path of the uploaded file
             const mimeType = file.mimetype; // MIME type of the file
+            const extension = mimeType.split("/")[1]; // The file extension
             const fileName =
                 itemType === "pictures"
                     ? file.originalname
-                    : `${recipeName}_${imageNum}`; // The name of the uploaded file
-            const sanitizedFileName = fileName.replace(/[^a-z0-9.]/gi, "_"); // Replace all non-alphanumeric characters with underscores
+                    : `${recipeName}_${imageNum}.${extension}`; // The name of the uploaded file, split mimeType to get extension
+            const sanitizedFileName = fileName.replace(/\s+/g, "_"); // Replace all whitespace characters with underscores
 
             // Upload the file to Google Drive
             const fileId = await uploadFile(
@@ -280,8 +288,13 @@ app.post("/api/upload", upload.array("files"), async (req, res) => {
         }
 
         if (itemType === "recipes") {
-            await updateRecipeList(parentFolderId);
+            console.log(
+                "Updating recipe list with recipe folder ID:",
+                parentFolderId
+            );
+            await updateRecipeList(folderName);
         } else if (itemType === "pictures") {
+            console.log("Updating picture list with picture IDs:", newPictures);
             await updatePictureList(newPictures);
         }
 
